@@ -1,0 +1,93 @@
+name: Build & OTA Release
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      board:
+        description: 'Board type (örn: BOARD_TYPE_BREAD_COMPACT_S3)'
+        required: false
+        default: 'BREAD_COMPACT_S3'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: ESP-IDF Build
+      uses: espressif/esp-idf-ci-action@v1
+      with:
+        esp_idf_version: v5.3.2
+        target: esp32s3
+        command: |
+          idf.py build
+          # .bin dosyasını kopyala
+          cp build/xiaozhi.bin build/firmware.bin
+
+    - name: Versiyon bilgisini oku
+      id: version
+      run: |
+        VERSION=$(grep 'set(PROJECT_VER' CMakeLists.txt | sed 's/.*"\(.*\)".*/\1/')
+        TIMESTAMP=$(date +%Y%m%d%H%M%S)
+        SHORT_SHA=${GITHUB_SHA::7}
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "tag=v${VERSION}-${SHORT_SHA}" >> $GITHUB_OUTPUT
+        echo "firmware_url=https://github.com/${{ github.repository }}/releases/download/v${VERSION}-${SHORT_SHA}/firmware.bin" >> $GITHUB_OUTPUT
+
+    - name: version.json oluştur
+      run: |
+        cat > build/version.json << EOF
+        {
+          "firmware": {
+            "version": "${{ steps.version.outputs.version }}",
+            "url": "${{ steps.version.outputs.firmware_url }}",
+            "sha": "${{ github.sha }}",
+            "built_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "force": 0
+          }
+        }
+        EOF
+        echo "=== version.json içeriği ==="
+        cat build/version.json
+
+    - name: GitHub Release oluştur
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.version.outputs.tag }}
+        name: "Robodog Firmware ${{ steps.version.outputs.version }}"
+        body: |
+          ## 🐕 Robodog OTA Güncellemesi
+          
+          - **Versiyon:** `${{ steps.version.outputs.version }}`
+          - **Commit:** `${{ github.sha }}`
+          - **Mesaj:** ${{ github.event.head_commit.message }}
+          - **Tarih:** $(date -u)
+          
+          ### OTA URL
+          ```
+          ${{ steps.version.outputs.firmware_url }}
+          ```
+        files: |
+          build/firmware.bin
+          build/version.json
+        make_latest: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: OTA Sunucusuna bildir (webhook)
+      if: vars.OTA_SERVER_URL != ''
+      run: |
+        curl -X POST "${{ vars.OTA_SERVER_URL }}/api/new-release" \
+          -H "Content-Type: application/json" \
+          -H "X-Secret: ${{ secrets.OTA_WEBHOOK_SECRET }}" \
+          -d '{
+            "version": "${{ steps.version.outputs.version }}",
+            "firmware_url": "${{ steps.version.outputs.firmware_url }}",
+            "sha": "${{ github.sha }}"
+          }' || echo "OTA sunucusu bildirim gönderilemedi (opsiyonel)"
