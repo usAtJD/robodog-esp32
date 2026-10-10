@@ -2,7 +2,7 @@ CONFIG_COMPILER_OPTIMIZATION_SIZE=y
 # ── Robodog OTA Sunucu URL ──────────────────────────────────────────────
 # Kendi sunucunun IP:PORT adresini buraya yaz (ör: 192.168.1.100:5000)
 # Dışarıdan erişim için ngrok/cloudflare tunnel veya port yönlendirme kullan
-CONFIG_OTA_URL="http://10.162.119.222:5000/ota/check"
+CONFIG_OTA_URL="https://robodog-ota.onrender.com/ota/check"
 # ────────────────────────────────────────────────────────────────────────
 CONFIG_COMPILER_CXX_EXCEPTIONS=y
 CONFIG_COMPILER_CXX_EXCEPTIONS_EMG_POOL_SIZE=1024

@@ -83,11 +83,11 @@ jobs:
     - name: OTA Sunucusuna bildir (webhook)
       if: vars.OTA_SERVER_URL != ''
       run: |
-        curl -X POST "${{ vars.OTA_SERVER_URL }}/api/new-release" \
+        curl -X POST "https://robodog-ota.onrender.com/api/new-release" \
           -H "Content-Type: application/json" \
           -H "X-Secret: ${{ secrets.OTA_WEBHOOK_SECRET }}" \
-          -d '{
-            "version": "${{ steps.version.outputs.version }}",
-            "firmware_url": "${{ steps.version.outputs.firmware_url }}",
-            "sha": "${{ github.sha }}"
-          }' || echo "OTA sunucusu bildirim gönderilemedi (opsiyonel)"
+          -d "{
+            \"version\": \"${{ steps.version.outputs.version }}\",
+            \"firmware_url\": \"${{ steps.version.outputs.firmware_url }}\",
+            \"sha\": \"${{ github.sha }}\"
+          }" || echo "OTA sunucu bildirimi gonderilemedi (opsiyonel)"
